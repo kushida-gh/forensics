@@ -1,0 +1,222 @@
+#!/bin/bash
+#
+# Linux forensic live data collection script for use during initial security incident
+# triage. Ideally these command binaries are verified trusted located on a separate,
+# read-only media in case the built-in system ones are trojaned.
+#
+# Some commands are specific to CentOS 7
+#
+# This script needs to run with root privileges
+
+
+echo -n "Enter directory the triage file should be saved (include trailing "/"), or just hit Enter for current directory: "
+read path
+out="$path"$(hostname)_$(date +%Y%m%d-%H%M)
+
+
+echo "File record start timestamp (local system time):" $(date) >> $out
+echo '' >> $out
+echo "Hostname:            " $(hostname) >> $out
+echo "System uptime:       " $(uptime) >> $out
+echo "Kernel:              " $(uname -a) >> $out
+echo "RHEL/CentOS version: " $(cat /etc/redhat-release) >> $out
+echo '' >> $out
+echo '' >> $out
+
+
+# Check integrity of timestamp by verifying ntpd or chronyd installed and synced to NTP
+echo 'Check if system time is synced to NTP via either ntpd or chronyd:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+checkrpmntp=$(rpm -qa | grep '^ntp-' | cut -d '-' -f1)
+checkrpmchrony=$(rpm -qa | grep '^chrony-' | cut -d '-' -f1)
+
+if [ "$checkrpmntp" = "ntp" ] && [ "$checkrpmchrony" = "chrony" ]; then
+   echo 'Both ntpd and chronyd are installed - potential conflict!' >> $out
+   echo '' >> $out
+fi
+
+svcrunstatntpd=$(systemctl is-active --quiet ntpd && echo 'yes')
+svcrunstatchronyd=$(systemctl is-active --quiet chronyd && echo 'yes')
+if [ "$svcrunstatntpd" = "yes" ]; then
+   echo 'ntpd is the active NTP daemon' >> $out
+   echo '' >> $out
+   ntpq -p -n >> $out
+   echo '' >> $out
+fi
+if [ "$svcrunstatchronyd" = "yes" ]; then
+   echo 'chronyd is the active NTP daemon' >> $out
+   echo '' >> $out
+   chronyc -n tracking >> $out
+   echo '' >> $out
+fi
+if [ "$svcrunstatntpd" != "yes" ] && [ "$svcrunstatchronyd" != "yes" ]; then
+   echo 'Neither ntpd or chronyd are running!' >> $out
+   echo '' >> $out
+fi
+echo '' >> $out
+
+
+echo 'Currently logged on users:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+w >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Last logged on users:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+last >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Last failed logons:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+lastb >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Current process list:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+ps aux >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Current top output:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+top -b -n 1 >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Installed system services and their states:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+systemctl list-units >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Installed kernel modules:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+lsmod | sort >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Network interfaces:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+ifconfig -a >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Current ARP cache:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+arp -an >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Contents of /etc/resolv.conf' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+cat /etc/resolv.conf | grep -v '^$' >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Contents of /etc/passwd:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+cat /etc/passwd | grep -v '^$' | grep -v '^$' >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Contents of /etc/shadow:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+cat /etc/shadow | grep -v '^$' >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Contents of /etc/group:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+cat /etc/group | grep -v '^$' >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Contents of /etc/gshadow:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+cat /etc/gshadow | grep -v '^$' >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Contents of /etc/hosts:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+cat /etc/hosts | grep -v '^$' >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Contents of /etc/hosts.allow (without comments):' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+cat /etc/hosts.allow | grep -v '^#' | grep -v '^$' >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Contents of /etc/hosts.deny (without comments):' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+cat /etc/hosts.deny | grep -v '^#' | grep -v '^$' >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Contents of /etc/rc.local (without comments):' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+cat /etc/rc.local | grep -v '^#' | grep -v '^$' >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Contents of /etc/login.defs (without comments):' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+cat /etc/login.defs | grep -v '^#' | grep -v '^$' >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Contents of /root/.bash_history:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+cat /root/.bash_history >> $out
+echo '' >> $out
+echo '' >> $out
+
+tar czvf "$path"$(hostname)_var-log-cron_$(date +%Y%m%d-%H%M) /var/log/cron
+tar czvf "$path"$(hostname)_var-log-maillog_$(date +%Y%m%d-%H%M) /var/log/maillog
+tar czvf "$path"$(hostname)_var-log-messages_$(date +%Y%m%d-%H%M) /var/log/messages
+tar czvf "$path"$(hostname)_var-log-secure_$(date +%Y%m%d-%H%M) /var/log/secure
+tar czvf "$path"$(hostname)_var-log-yum.log_$(date +%Y%m%d-%H%M) /var/log/yum.log
+
+echo 'Installed RPM packages:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+rpm -qa | sort >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'iptables output:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+iptables -L -nv --line >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'netstat output:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+# assumes net-tools package is installed
+netstat -anp >> $out
+echo '' >> $out
+echo '' >> $out
+
+# File system, sort by file access times
+ls -laRu / >> "$path"$(hostname)_file-_system_sorted_by_atime_$(date +%Y%m%d-%H%M)
+
+# File system, sort by file ctimes (inode change time)
+ls -laRc / >> "$path"$(hostname)_file-_system_sorted_by_ctime_$(date +%Y%m%d-%H%M)
+
+# File system, sort by file modification time
+ls -laR / >> "$path"$(hostname)_file-_system_sorted_by_mtime_$(date +%Y%m%d-%H%M)
+
+
+# If httpd is installed, collect server logs (assumes default location)
+checkrpmhttpd=$(rpm -qa | grep '^httpd-' | cut -d '-' -f1 | uniq)
+if [ "$checkrpmhttpd" = "httpd" ]; then
+   tar czvf "$path"$(hostname)_var-log-httpd_$(date +%Y%m%d-%H%M) /var/log/httpd/*
+fi
+
+
+
+echo "File record ending timestamp (local system time):" $(date) >> $out
