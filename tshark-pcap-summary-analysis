@@ -1,0 +1,129 @@
+#!/bin/bash
+#
+# Based on tshark 3.0.2-0-g621ed351d5c9 on MacOS 10.14.5 (18F132) Mojave
+
+read -p 'Enter the PCAP filename to be analyzed: ' pcapfile
+
+pcapfilenoext=$(echo $pcapfile | cut -d '.' -f1)
+
+# ---------------------------------------------------------------------
+
+tshark -nnr $pcapfile -q -z io,phs
+echo ""
+echo ""
+
+echo "Extracting out UDP traffic..."
+tcpdump -nnr $pcapfile 'udp' -w $pcapfilenoext-udp.pcap
+echo ""
+echo "Extracting out DHCP traffic..."
+tcpdump -nnr $pcapfile 'port 67 or port 68' -w $pcapfilenoext-port-67-or-68.pcap
+echo ""
+echo "Extracting out DNS traffic (port 53 only)..."
+tcpdump -nnr $pcapfile 'port 53' -w $pcapfilenoext-port-53.pcap
+echo ""
+echo "Extracting out non-TCP/UDP/ARP traffic..."
+tcpdump -nnr $pcapfile 'not tcp and not udp and not arp' -w $pcapfilenoext-no-tcp-udp-or-arp.pcap
+echo ""
+echo "Extracting out NTP traffic..."
+tcpdump -nnr $pcapfile 'port 123' -w $pcapfilenoext-port-123.pcap
+echo ""
+echo "Extracting out ICMPv4..."
+tcpdump -nnr $pcapfile 'icmp' -w $pcapfilenoext-icmp.pcap
+echo ""
+echo "Extracting out IPv6 traffic..."
+tcpdump -nnr $pcapfile 'ip6' -w $pcapfilenoext-ipv6.pcap
+echo ""
+echo ""
+
+tshark -nnr $pcapfile -q -z conv,eth | grep -v '|' | grep -v '=========================' | grep -v 'Ethernet Conversations' | grep -v 'Filter:<No Filter>' | awk '{print $1, $3}' >> conversations-eth-tmp
+cat conversations-eth-tmp | awk '{print $1}' >> conversations-eth-src
+cat conversations-eth-tmp | awk '{print $2}' >> conversations-eth-dst
+cat conversations-eth-src conversations-eth-dst | grep -v 'ff:ff:ff:ff:ff:ff' | sort | uniq >> conversations-eth-uniq-macs
+rm -f conversations-eth-tmp
+tshark -nnr $pcapfile -q -z conv,ip >> conversations-ip
+tshark -nnr $pcapfilenoext-ipv6.pcap -q -z conv,ipv6 >> conversations-ipv6
+tshark -nnr $pcapfile -q -z conv,tcp >> conversations-tcp
+tshark -nnr $pcapfilenoext-udp.pcap -q -z conv,udp >> conversations-udp
+
+# ---------------------------------------------------------------------
+
+echo 'DHCP Discover packet, Host Name value:'
+tshark -nnr $pcapfilenoext-port-67-or-68.pcap -Y 'bootp.option.dhcp == 1' -T fields -e 'dhcp.option.hostname' | sort | uniq
+echo ""
+echo ""
+
+echo 'DNS A record queries, list FQDNs:'
+tshark -nnr $pcapfilenoext-port-53.pcap -Y '(dns.flags.response == 0) && (dns.qry.type == 1)' -T fields -e 'dns.qry.name' | sort | uniq
+echo ""
+echo ""
+
+echo 'DNS queries non-A records:'
+tshark -nnr $pcapfilenoext-port-53.pcap -Y 'dns && !dns.qry.type == 1' | sort | uniq
+echo ""
+echo ""
+
+echo 'DNS query respones, list CNAMES and A records, TTLs:'
+tshark -nnr $pcapfilenoext-port-53.pcap -Y '(dns.flags.response == 1)' -T fields -e 'dns.qry.name' -e 'dns.cname' -e 'dns.a' -e 'dns.resp.ttl' | sort | uniq
+echo ""
+echo ""
+
+echo 'TCP destination ports (based on SYN packets):'
+tshark -nnr $pcapfile -Y '(tcp.flags.syn == 1) && (tcp.flags.ack == 0)' -T fields -e tcp.dstport | sort | uniq | sort
+echo ""
+echo ""
+
+echo 'UDP destination ports:'
+tshark -nnr $pcapfilenoext-udp.pcap -Y '(udp) && ((ip.src == 192.168.0.0/16) or (ip.src == 172.16.0.0/12) or (ip.src == 10.0.0.0/8) or (ip.src == 0.0.0.0))' -T fields -e udp.dstport | sort | uniq | sort
+echo ""
+echo ""
+
+echo 'Non-TCP/UDP/ARP check (IPv4 Next Header protocol value(s)):'
+tshark -nnr $pcapfilenoext-no-tcp-udp-or-arp.pcap -Y '!tcp && !udp && !arp' -T fields -e 'ip.proto' | sort | uniq | sort
+echo ""
+echo ""
+
+echo 'Non-TCP/UDP/ARP check (IPv6 Next Header protocol value(s)):'
+tshark -nnr $pcapfilenoext-no-tcp-udp-or-arp.pcap -Y '!tcp && !udp && !arp' -T fields -e 'ipv6.nxt'| sort | uniq | sort
+echo ""
+echo ""
+
+echo 'HTTP requests:'
+tshark -nnr $pcapfile -Y 'http' -T fields -e 'http.request.method' -e 'http.host' -e 'http.request.uri' | sort | uniq | sort
+echo ""
+echo ""
+
+echo 'TLS Handshake - Server Hellos, agreed TLS versions and cipher suites:'
+tshark -nnr google-pixel-3a-20190711-01.pcap -Y 'tls.handshake.type == 2' -Vx | grep '            Version:' >> tls-ssl-versions
+tshark -nnr google-pixel-3a-20190711-01.pcap -Y 'tls.handshake.type == 2' -Vx | grep 'Cipher Suite: ' >> tls-cipher-suites
+cat tls-ssl-versions | awk '{print $2 , $3}' | sort | uniq
+echo ""
+cat tls-cipher-suites | awk '{print $3}' | sort | uniq
+echo ""
+echo ""
+
+echo 'TLS Handshake - certificate Common Name:'
+tshark -nnr $pcapfile -Y 'tls.handshake.type == 11' -V | grep 'RelativeDistinguishedName item (id-at-commonName' | sort | uniq | cut -d '=' -f2 | sed s/')$'//g
+echo ""
+echo ""
+
+echo 'NTP server response, list NTP version, stratum, reference ID:'
+tshark -nnr $pcapfilenoext-port-123.pcap -Y 'ntp.flags.mode == 4' -T fields -e 'ntp.flags.vn' -e 'ntp.stratum' -e 'ntp.refid' | sort | uniq
+echo ""
+echo ""
+
+echo 'ICMP activity, list ICMP type and code:'
+tshark -nnr $pcapfilenoext-icmp.pcap -Y 'icmp' -T fields -e icmp.type -e icmp.code | sort | uniq
+echo ""
+echo ""
+
+echo 'IPv6 activity, Next Header values (0 = IPv6 Hop-by-Hop Option, 58=ICMPv6):'
+tshark -nnr $pcapfilenoext-ipv6.pcap -Y 'ipv6' -Y 'ipv6' -Y 'ipv6' -T fields -e 'ipv6.nxt' | sort | uniq
+echo ""
+echo ""
+
+
+# Check PTR records for all external IP addresses
+
+# for i in (dns-result-addresses); do 
+#	nslookup i | grep in-addr.arpa | awk '{print $1 "," $4}';
+# done;
