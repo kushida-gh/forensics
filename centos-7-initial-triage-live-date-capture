@@ -202,13 +202,13 @@ echo '' >> $out
 echo '' >> $out
 
 # File system, sort by file access times
-ls -laRu / >> "$path"$(hostname)_file-_system_sorted_by_atime_$(date +%Y%m%d-%H%M)
+ls -laRu / >> "$path"$(hostname)_file_system_sorted_by_atime_$(date +%Y%m%d-%H%M)
 
 # File system, sort by file ctimes (inode change time)
-ls -laRc / >> "$path"$(hostname)_file-_system_sorted_by_ctime_$(date +%Y%m%d-%H%M)
+ls -laRc / >> "$path"$(hostname)_file_system_sorted_by_ctime_$(date +%Y%m%d-%H%M)
 
 # File system, sort by file modification time
-ls -laR / >> "$path"$(hostname)_file-_system_sorted_by_mtime_$(date +%Y%m%d-%H%M)
+ls -laR / >> "$path"$(hostname)_file_system_sorted_by_mtime_$(date +%Y%m%d-%H%M)
 
 
 # If httpd is installed, collect server logs (assumes default location)
