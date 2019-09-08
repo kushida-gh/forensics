@@ -1,0 +1,164 @@
+#!/bin/bash
+#
+# Mac OS X forensic live data collection script for use during initial security incident
+# triage. Ideally these command binaries are verified trusted located on a separate,
+# read-only media in case the built-in system ones are trojaned.
+#
+# Some commands may be specific to Mac OS X 10.14.6.
+#
+# This script needs to run with root privileges
+
+
+echo -n "Enter directory the triage file should be saved (include trailing "/"), or just hit Enter for current directory: "
+read path
+out="$path"$(hostname)_$(date +%Y%m%d-%H%M)
+
+
+echo "File record start timestamp (local system time):" $(date) >> $out
+echo '' >> $out
+echo "Hostname:            " $(hostname) >> $out
+echo "System uptime:       " $(uptime) >> $out
+echo "Kernel:              " $(uname -a) >> $out
+echo "Mac OS X version:    " $(sw_vers | grep ProductVersion | awk '{print $2}') >> $out
+echo "Mac OS X build:      " $(sw_vers | grep BuildVersion | awk '{print $2}') >> $out
+echo '' >> $out
+echo '' >> $out
+
+
+# Need to figure out how sntp can show synced status and stratum on Mojave
+
+
+echo 'Currently logged on users:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+w >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Last logged on users:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+last >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Current process list:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+ps aux >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Current top output:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+### top -b -n 1 >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Installed system services and their states:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+launchctl list >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Installed kernel modules:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+kextstat >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Network interfaces:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+ifconfig -a >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Current ARP cache:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+arp -an >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Contents of /etc/resolv.conf' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+cat /etc/resolv.conf | grep -v '^#' | grep -v '^$' >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Contents of /etc/passwd:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+cat /private/etc/passwd | grep -v '^#' | grep -v '^$' >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Contents of /etc/group:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+cat /private/etc/group | grep -v '^#' | grep -v '^$' >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'Contents of /etc/hosts:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+cat /private/etc/hosts | grep -v '^#' | grep -v '^$' >> $out
+echo '' >> $out
+echo '' >> $out
+
+
+# Perhaps "log show" would be a better alternative, something to look into later on
+tar czvf "$path"$(hostname)_var-log-Bluetooth_$(date +%Y%m%d-%H%M) /var/log/Bluetooth/*
+tar czvf "$path"$(hostname)_var-log-appfirewall.log_$(date +%Y%m%d-%H%M) /var/log/appfirewall.log
+tar czvf "$path"$(hostname)_var-log-system.log_$(date +%Y%m%d-%H%M) /var/log/system.log*
+tar czvf "$path"$(hostname)_var-log-wifi.log_$(date +%Y%m%d-%H%M) /var/log/wifi.log
+tar czvf "$path"$(hostname)_var-log-wifi.log_$(date +%Y%m%d-%H%M) /var/log/wifi*
+
+
+echo 'Directory listing of /Applications:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+ls -l /Applications/ >> $out
+echo '' >> $out
+echo '' >> $out
+
+
+echo 'Firewall status:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate >> $out
+/usr/libexec/ApplicationFirewall/socketfilterfw --getblockall >> $out
+/usr/libexec/ApplicationFirewall/socketfilterfw --listapps >> $out
+/usr/libexec/ApplicationFirewall/socketfilterfw --getallowsigned >> $out
+/usr/libexec/ApplicationFirewall/socketfilterfw --getstealthmode >> $out
+/usr/libexec/ApplicationFirewall/socketfilterfw --getloggingmode >> $out
+/usr/libexec/ApplicationFirewall/socketfilterfw --getloggingopt >> $out
+echo '' >> $out
+echo '' >> $out
+
+
+echo 'netstat output:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+netstat -an >> $out
+echo '' >> $out
+echo '' >> $out
+
+
+echo 'lsof -Pi output:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+lsof -Pi >> $out
+echo '' >> $out
+echo '' >> $out
+
+
+echo 'Status of Wi-Fi interface (assumed to be en0) and SSIDs configured:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+networksetup -listpreferredwirelessnetworks en0 >> $out
+networksetup -getairportpower en0 >> $out
+echo '' >> $out
+echo '' >> $out
+
+
+# File system, sort by file access times
+ls -laRu / >> "$path"$(hostname)_file_system_sorted_by_atime_$(date +%Y%m%d-%H%M)
+
+# File system, sort by file ctimes (inode change time)
+ls -laRc / >> "$path"$(hostname)_file_system_sorted_by_ctime_$(date +%Y%m%d-%H%M)
+
+# File system, sort by file modification time
+ls -laR / >> "$path"$(hostname)_file_system_sorted_by_mtime_$(date +%Y%m%d-%H%M)
+
+
+echo "File record ending timestamp (local system time):" $(date) >> $out
