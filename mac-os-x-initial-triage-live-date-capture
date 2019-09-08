@@ -109,9 +109,39 @@ tar czvf "$path"$(hostname)_var-log-wifi.log_$(date +%Y%m%d-%H%M) /var/log/wifi.
 tar czvf "$path"$(hostname)_var-log-wifi.log_$(date +%Y%m%d-%H%M) /var/log/wifi*
 
 
-echo 'Directory listing of /Applications:' >> $out
+echo 'System Profiler - Installation History:' >> $out
 echo '----------------------------------------------------------------------------------------------------------------' >> $out
-ls -l /Applications/ >> $out
+system_profiler SPInstallHistoryDataType >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'System Profiler - Applications:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+system_profiler SPApplicationsDataType >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'System Profiler - Extensions:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+system_profiler SPExtensionsDataType >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'System Profiler - Legacy Software:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+system_profiler SPLegacySoftwareDataType >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'System Profiler - Startup Items:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+system_profiler SPStartupItemDataType >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'System Profiler - Network Locations:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+system_profiler SPNetworkLocationDataType >> $out
 echo '' >> $out
 echo '' >> $out
 
