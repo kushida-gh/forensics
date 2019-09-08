@@ -120,10 +120,3 @@ echo 'IPv6 activity, Next Header values (0 = IPv6 Hop-by-Hop Option, 58=ICMPv6):
 tshark -nnr $pcapfilenoext-ipv6.pcap -Y 'ipv6' -Y 'ipv6' -Y 'ipv6' -T fields -e 'ipv6.nxt' | sort | uniq
 echo ""
 echo ""
-
-
-# Check PTR records for all external IP addresses
-
-# for i in (dns-result-addresses); do 
-#	nslookup i | grep in-addr.arpa | awk '{print $1 "," $4}';
-# done;
