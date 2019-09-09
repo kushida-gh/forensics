@@ -202,6 +202,18 @@ netstat -anp >> $out
 echo '' >> $out
 echo '' >> $out
 
+echo 'SUID files:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+find / -perm -004000 -type f -print >> $out
+echo '' >> $out
+echo '' >> $out
+
+echo 'SGID files:' >> $out
+echo '----------------------------------------------------------------------------------------------------------------' >> $out
+find / -perm -006000 -type f -print >> $out
+echo '' >> $out
+echo '' >> $out
+
 # File system, sort by file access times
 ls -laRu / >> "$path"$(hostname)_file_system_sorted_by_atime_$(date +%Y%m%d-%H%M)
 
