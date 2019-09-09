@@ -170,9 +170,10 @@ cat /etc/login.defs | grep -v '^#' | grep -v '^$' >> $out
 echo '' >> $out
 echo '' >> $out
 
-echo 'Contents of /root/.bash_history:' >> $out
+echo '.bash_history contents of all users with bash shell access in /etc/passwd:' >> $out
 echo '----------------------------------------------------------------------------------------------------------------' >> $out
-cat /root/.bash_history >> $out
+homedirs=$(cat /etc/passwd | grep '/bin/bash' | cut -d ':' -f 6)
+for i in $homedirs; do echo $i && echo '--------------------------------' && cat $i/.bash_history && echo -e '\n'; done >> $out
 echo '' >> $out
 echo '' >> $out
 
