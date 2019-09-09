@@ -202,6 +202,15 @@ netstat -anp >> $out
 echo '' >> $out
 echo '' >> $out
 
+# Check if xinetd is installed
+checkrpmxinetd=$(rpm -qa | grep '^xinetd-' | cut -d '-' -f1)
+if [ "$checkrpmxinetd" = "xinetd" ]; then
+   echo 'Contents of /etc/xinetd.conf and /etc/xinetd.d/*:' >> $out
+   echo '----------------------------------------------------------------------------------------------------------------' >> $out
+   cat /etc/xinetd.conf | grep -v '^#' | grep -v '^$' >> $out
+   cat /etc/xinetd.d/* | grep -v '^#' | grep -v '^$' >> $out
+fi
+
 echo 'SUID files:' >> $out
 echo '----------------------------------------------------------------------------------------------------------------' >> $out
 find / -perm -004000 -type f -print >> $out
