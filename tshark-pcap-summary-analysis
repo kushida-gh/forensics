@@ -93,8 +93,8 @@ echo ""
 echo ""
 
 echo 'TLS Handshake - Server Hellos, agreed TLS versions and cipher suites:'
-tshark -nnr google-pixel-3a-20190711-01.pcap -Y 'tls.handshake.type == 2' -Vx | grep '            Version:' >> tls-ssl-versions
-tshark -nnr google-pixel-3a-20190711-01.pcap -Y 'tls.handshake.type == 2' -Vx | grep 'Cipher Suite: ' >> tls-cipher-suites
+tshark -nnr $pcapfile  -Y 'tls.handshake.type == 2' -Vx | grep '            Version:' >> tls-ssl-versions
+tshark -nnr $pcapfile  -Y 'tls.handshake.type == 2' -Vx | grep 'Cipher Suite: ' >> tls-cipher-suites
 cat tls-ssl-versions | awk '{print $2 , $3}' | sort | uniq
 echo ""
 cat tls-cipher-suites | awk '{print $3}' | sort | uniq
